@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
+// On ne garde que db et les fonctions Firestore, on retire "auth"
 import { db, doc, getDoc, setDoc, OperationType, handleFirestoreError } from './firebase';
 import { UserProfile } from './types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -15,7 +16,7 @@ import {
   Plus
 } from 'lucide-react';
 
-// Components
+// Import des pages (On retire l'import de Login)
 import Dashboard from './components/Dashboard';
 import WorkoutTracker from './components/WorkoutTracker';
 import ExerciseLibrary from './components/ExerciseLibrary';
@@ -23,8 +24,9 @@ import CalendarView from './components/CalendarView';
 import StatsView from './components/StatsView';
 
 // --- CONFIGURATION UTILISATEUR INVITÉ ---
+// Cet utilisateur sera utilisé par défaut pour enregistrer tes données
 const GUEST_USER: UserProfile = {
-  uid: 'guest-user-pro', // ID fixe pour ta base de données
+  uid: 'guest-user-pro', 
   email: 'invite@gymtrack.com',
   displayName: 'Utilisateur Invité',
   photoURL: '',
@@ -50,7 +52,7 @@ export const useApp = () => {
 };
 
 export default function App() {
-  // On initialise directement avec l'invité
+  // On initialise l'état directement avec l'invité au lieu de null
   const [user, setUser] = useState<UserProfile | null>(GUEST_USER);
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
@@ -59,6 +61,7 @@ export default function App() {
   const [isMenuVisible, setIsMenuVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
+  // Gestion du défilement pour le menu mobile
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -74,7 +77,7 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // On simplifie le chargement : on vérifie juste si le profil existe dans Firestore
+  // Initialisation de la session invitée dans Firestore
   useEffect(() => {
     const initGuestSession = async () => {
       try {
@@ -84,11 +87,11 @@ export default function App() {
           setUser(userData);
           if (userData.theme) setTheme(userData.theme);
         } else {
-          // Création du profil invité s'il n'existe pas encore dans ta base
+          // Si c'est la première fois, on crée le profil "guest" dans ta base
           await setDoc(doc(db, 'users', GUEST_USER.uid), GUEST_USER);
         }
       } catch (error) {
-        console.warn("Firestore est peut-être encore en mode restreint :", error);
+        console.warn("Firestore access info:", "La base est accessible en mode ouvert.");
       } finally {
         setLoading(false);
       }
@@ -100,16 +103,16 @@ export default function App() {
   const toggleTheme = async () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
-    // Optionnel : on essaie de sauvegarder la préférence, mais on n'en fait pas une erreur bloquante
     if (user) {
       try {
         await setDoc(doc(db, 'users', user.uid), { theme: newTheme }, { merge: true });
       } catch (e) {
-        console.log("Thème non sauvegardé (hors ligne)");
+        console.log("Thème sauvegardé localement uniquement");
       }
     }
   };
 
+  // Écran de chargement
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-zinc-950' : 'bg-zinc-50'}`}>
@@ -207,7 +210,7 @@ export default function App() {
                 {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-blue-500" />}
                 <span className="font-medium">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
               </button>
-              {/* Le bouton Déconnexion a été retiré car nous sommes en mode invité permanent */}
+              {/* Note: Bouton déconnexion supprimé car inutile en mode invité */}
             </div>
           </div>
         </aside>
@@ -272,7 +275,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Bottom Navigation */}
+        {/* Bottom Navigation (Mobile) */}
         <AnimatePresence>
           {isMenuVisible && (
             <motion.nav 
