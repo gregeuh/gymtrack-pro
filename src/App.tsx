@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, OperationType, handleFirestoreError } from './firebase';
+import { db, doc, getDoc, setDoc, OperationType, handleFirestoreError } from './firebase';
 import { UserProfile } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -8,7 +8,6 @@ import {
   Calendar as CalendarIcon, 
   Library, 
   BarChart3, 
-  LogOut, 
   Sun, 
   Moon,
   Menu,
@@ -17,12 +16,21 @@ import {
 } from 'lucide-react';
 
 // Components
-import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import WorkoutTracker from './components/WorkoutTracker';
 import ExerciseLibrary from './components/ExerciseLibrary';
 import CalendarView from './components/CalendarView';
 import StatsView from './components/StatsView';
+
+// --- CONFIGURATION UTILISATEUR INVITÉ ---
+const GUEST_USER: UserProfile = {
+  uid: 'guest-user-pro', // ID fixe pour ta base de données
+  email: 'invite@gymtrack.com',
+  displayName: 'Utilisateur Invité',
+  photoURL: '',
+  theme: 'dark',
+  createdAt: new Date()
+};
 
 // Context
 interface AppContextType {
@@ -42,9 +50,10 @@ export const useApp = () => {
 };
 
 export default function App() {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  // On initialise directement avec l'invité
+  const [user, setUser] = useState<UserProfile | null>(GUEST_USER);
+  const [loading, setLoading] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(true);
@@ -65,47 +74,38 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
+  // On simplifie le chargement : on vérifie juste si le profil existe dans Firestore
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as UserProfile;
-            setUser(userData);
-            if (userData.theme) setTheme(userData.theme);
-          } else {
-            const newUser: UserProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || '',
-              photoURL: firebaseUser.photoURL || '',
-              theme: 'dark',
-              createdAt: new Date()
-            };
-            await setDoc(doc(db, 'users', firebaseUser.uid), newUser);
-            setUser(newUser);
-          }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+    const initGuestSession = async () => {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', GUEST_USER.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as UserProfile;
+          setUser(userData);
+          if (userData.theme) setTheme(userData.theme);
+        } else {
+          // Création du profil invité s'il n'existe pas encore dans ta base
+          await setDoc(doc(db, 'users', GUEST_USER.uid), GUEST_USER);
         }
-      } else {
-        setUser(null);
+      } catch (error) {
+        console.warn("Firestore est peut-être encore en mode restreint :", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    initGuestSession();
   }, []);
 
   const toggleTheme = async () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
+    // Optionnel : on essaie de sauvegarder la préférence, mais on n'en fait pas une erreur bloquante
     if (user) {
       try {
         await setDoc(doc(db, 'users', user.uid), { theme: newTheme }, { merge: true });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      } catch (e) {
+        console.log("Thème non sauvegardé (hors ligne)");
       }
     }
   };
@@ -121,10 +121,6 @@ export default function App() {
         </motion.div>
       </div>
     );
-  }
-
-  if (!user) {
-    return <Login />;
   }
 
   const navItems = [
@@ -163,7 +159,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Sidebar (Desktop & Mobile Drawer) */}
+        {/* Sidebar */}
         <aside className={`
           fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-0
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -211,13 +207,7 @@ export default function App() {
                 {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-blue-500" />}
                 <span className="font-medium">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
               </button>
-              <button
-                onClick={() => auth.signOut()}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 transition-all ${theme === 'dark' ? 'hover:bg-zinc-800' : 'hover:bg-zinc-100'}`}
-              >
-                <LogOut className="w-5 h-5" />
-                <span className="font-medium">Déconnexion</span>
-              </button>
+              {/* Le bouton Déconnexion a été retiré car nous sommes en mode invité permanent */}
             </div>
           </div>
         </aside>
@@ -282,7 +272,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Bottom Navigation (Mobile - Auto-hide on scroll) */}
+        {/* Bottom Navigation */}
         <AnimatePresence>
           {isMenuVisible && (
             <motion.nav 
