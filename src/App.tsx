@@ -1,5 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, onSnapshot, OperationType, handleFirestoreError } from './firebase'; // Ajout de onSnapshot ici
+import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, onSnapshot, OperationType, handleFirestoreError } from './firebase';
 import { UserProfile } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -26,7 +26,7 @@ import CalendarView from './components/CalendarView';
 import StatsView from './components/StatsView';
 import ProfileView from './components/ProfileView';
 
-// Context
+// Context Definition
 interface AppContextType {
   user: UserProfile | null;
   theme: 'light' | 'dark';
@@ -52,6 +52,7 @@ export default function App() {
   const [isMenuVisible, setIsMenuVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
+  // Gestion du scroll pour cacher/afficher le menu mobile
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -62,18 +63,18 @@ export default function App() {
       }
       setLastScrollY(currentScrollY);
     };
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // --- LOGIQUE CORRIGÉE : ÉCOUTE DYNAMIQUE DU PROFIL ---
+  // --- LOGIQUE D'AUTHENTIFICATION ET SYNCHRONISATION TEMPS RÉEL ---
   useEffect(() => {
     let unsubscribeSnapshot: (() => void) | null = null;
 
     const authUnsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // 1. On lance l'écoute en temps réel du document utilisateur
-        // C'est ce qui permet de mettre à jour le nom sur l'accueil immédiatement
+        // Écoute en temps réel du profil utilisateur pour la mise à jour du nom
         unsubscribeSnapshot = onSnapshot(doc(db, 'users', firebaseUser.uid), (snapshot) => {
           if (snapshot.exists()) {
             const userData = snapshot.data() as UserProfile;
@@ -82,7 +83,7 @@ export default function App() {
           }
         });
 
-        // 2. Logique de création initiale (si le compte vient d'être créé)
+        // Vérification / Création initiale du document utilisateur
         try {
           const userRef = doc(db, 'users', firebaseUser.uid);
           const userDoc = await getDoc(userRef);
@@ -91,7 +92,7 @@ export default function App() {
             const newUser: UserProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
-              displayName: firebaseUser.email?.split('@')[0] || 'Utilisateur',
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Athlète',
               photoURL: firebaseUser.photoURL || '',
               theme: 'dark',
               createdAt: new Date()
@@ -99,7 +100,7 @@ export default function App() {
             await setDoc(userRef, newUser);
           }
         } catch (error) {
-          console.error("Erreur d'initialisation utilisateur:", error);
+          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
         }
       } else {
         setUser(null);
@@ -129,7 +130,10 @@ export default function App() {
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-zinc-950' : 'bg-zinc-50'}`}>
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+        <motion.div 
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        >
           <Dumbbell className="w-12 h-12 text-blue-500" />
         </motion.div>
       </div>
@@ -144,7 +148,7 @@ export default function App() {
     { id: 'calendar', label: 'Calendrier', icon: CalendarIcon },
     { id: 'library', label: 'Exercices', icon: Library },
     { id: 'profile', label: 'Profil', icon: UserCircle },
-    { id: 'stats', label: 'Stats', icon: BarChart3 },
+    { id: 'stats', label: 'Statistiques', icon: BarChart3 },
   ];
 
   const renderPage = () => {
@@ -161,28 +165,77 @@ export default function App() {
 
   return (
     <AppContext.Provider value={{ user, theme, toggleTheme, currentPage, setCurrentPage }}>
+      {/* FIX MOBILE : overflow-x-hidden sur le container principal */}
       <div className={`min-h-screen flex flex-col lg:flex-row overflow-x-hidden ${theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'}`}>
         
+        {/* Mobile Sidebar Overlay */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="fixed inset-0 bg-black/60 z-50 lg:hidden"
+            />
+          )}
+        </AnimatePresence>
+
         {/* Sidebar */}
-        <aside className={`fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 lg:relative lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} ${theme === 'dark' ? 'bg-zinc-900 border-r border-zinc-800' : 'bg-white border-r border-zinc-200'}`}>
+        <aside className={`
+          fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-0
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${theme === 'dark' ? 'bg-zinc-900 border-r border-zinc-800' : 'bg-white border-r border-zinc-200'}
+        `}>
           <div className="h-full flex flex-col p-6">
             <div className="flex items-center justify-between mb-10">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-600 rounded-lg"><Dumbbell className="w-6 h-6 text-white" /></div>
+                <div className="p-2 bg-blue-600 rounded-lg">
+                  <Dumbbell className="w-6 h-6 text-white" />
+                </div>
                 <h1 className="text-xl font-bold tracking-tight">GymTrack Pro</h1>
               </div>
-              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2"><X className="w-6 h-6" /></button>
+              <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 hover:bg-zinc-800/10 rounded-xl">
+                <X className="w-6 h-6" />
+              </button>
             </div>
+
             <nav className="flex-1 space-y-2">
               {navItems.map((item) => (
-                <button key={item.id} onClick={() => { setCurrentPage(item.id); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentPage === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : `hover:bg-zinc-800/10 ${theme === 'dark' ? 'hover:bg-zinc-800' : 'hover:bg-zinc-100'}`}`}>
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setCurrentPage(item.id);
+                    setIsSidebarOpen(false);
+                  }}
+                  className={`
+                    w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all
+                    ${currentPage === item.id 
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
+                      : `hover:bg-zinc-800/10 ${theme === 'dark' ? 'hover:bg-zinc-800' : 'hover:bg-zinc-100'}`}
+                  `}
+                >
                   <item.icon className="w-5 h-5" />
                   <span className="font-medium">{item.label}</span>
                 </button>
               ))}
             </nav>
+
             <div className="pt-6 border-t border-zinc-800/50 space-y-2">
-              <button onClick={() => auth.signOut()} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 transition-all hover:bg-red-500/5"><LogOut className="w-5 h-5" /><span className="font-medium">Déconnexion</span></button>
+              <button
+                onClick={toggleTheme}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${theme === 'dark' ? 'hover:bg-zinc-800' : 'hover:bg-zinc-100'}`}
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-blue-500" />}
+                <span className="font-medium">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
+              </button>
+              <button
+                onClick={() => auth.signOut()}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 transition-all ${theme === 'dark' ? 'hover:bg-zinc-800' : 'hover:bg-zinc-100'}`}
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Déconnexion</span>
+              </button>
             </div>
           </div>
         </aside>
@@ -190,30 +243,86 @@ export default function App() {
         {/* Mobile Header */}
         <header className={`lg:hidden flex items-center justify-between px-4 pb-4 pt-[calc(16px+env(safe-area-inset-top))] sticky top-0 z-30 backdrop-blur-md ${theme === 'dark' ? 'bg-zinc-950/80 border-b border-zinc-800' : 'bg-zinc-50/80 border-b border-zinc-200'}`}>
           <div className="flex items-center gap-3">
-            <button onClick={() => setIsSidebarOpen(true)} className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-zinc-900 border border-zinc-800' : 'bg-white border border-zinc-200'}`}><Menu className="w-6 h-6" /></button>
-            <div className="flex items-center gap-2"><div className="p-1.5 bg-blue-600 rounded-lg"><Dumbbell className="w-5 h-5 text-white" /></div><span className="font-bold tracking-tight">GymTrack</span></div>
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-zinc-900 border border-zinc-800' : 'bg-white border border-zinc-200'}`}
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-600 rounded-lg">
+                <Dumbbell className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-bold tracking-tight">GymTrack</span>
+            </div>
           </div>
-          <button onClick={toggleTheme} className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-zinc-900' : 'bg-white border'}`}>{theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-blue-500" />}</button>
+          <button 
+            onClick={toggleTheme}
+            className={`p-2 rounded-xl ${theme === 'dark' ? 'bg-zinc-900' : 'bg-white border border-zinc-200'}`}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-blue-500" />}
+          </button>
         </header>
 
-        {/* Main Content */}
+        {/* Main Content Area */}
         <main className="flex-1 flex flex-col min-w-0 min-h-screen">
+          {/* FIX MOBILE : p-3 au lieu de p-4 pour maximiser l'espace */}
           <div className="flex-1 p-3 md:p-8">
             <AnimatePresence mode="wait">
-              <motion.div key={currentPage} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+              <motion.div
+                key={currentPage}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
                 {renderPage()}
               </motion.div>
             </AnimatePresence>
           </div>
         </main>
 
+        {/* Floating Action Button (Tracker) */}
+        <AnimatePresence>
+          {currentPage !== 'tracker' && (
+            <motion.button
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setCurrentPage('tracker')}
+              className="fixed bottom-24 right-6 lg:bottom-8 lg:right-8 z-40 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl shadow-blue-600/40 flex items-center justify-center transition-transform"
+            >
+              <Plus className="w-8 h-8" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+
         {/* Bottom Navigation (Mobile) */}
         <AnimatePresence>
           {isMenuVisible && (
-            <motion.nav initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className={`lg:hidden fixed bottom-6 left-4 right-4 z-40 px-2 py-2 border rounded-3xl backdrop-blur-xl shadow-2xl ${theme === 'dark' ? 'bg-zinc-900/90 border-zinc-800 shadow-black/50' : 'bg-white/90 border-zinc-200 shadow-zinc-200/50'}`}>
+            <motion.nav 
+              initial={{ y: 100 }}
+              animate={{ y: 0 }}
+              exit={{ y: 100 }}
+              className={`
+                lg:hidden fixed bottom-6 left-4 right-4 z-40 px-2 py-2 border rounded-3xl backdrop-blur-xl shadow-2xl
+                ${theme === 'dark' ? 'bg-zinc-900/90 border-zinc-800' : 'bg-white/90 border-zinc-200'}
+              `}
+            >
               <div className="flex items-center justify-around">
                 {navItems.map((item) => (
-                  <button key={item.id} onClick={() => setCurrentPage(item.id)} className={`flex flex-col items-center gap-1 p-3 rounded-2xl transition-all ${currentPage === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : theme === 'dark' ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                  <button
+                    key={item.id}
+                    onClick={() => setCurrentPage(item.id)}
+                    className={`
+                      flex flex-col items-center gap-1 p-3 rounded-2xl transition-all
+                      ${currentPage === item.id 
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
+                        : theme === 'dark' ? 'text-zinc-500' : 'text-zinc-400'}
+                    `}
+                  >
                     <item.icon className="w-6 h-6" />
                   </button>
                 ))}
