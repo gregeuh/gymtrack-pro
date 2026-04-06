@@ -6,8 +6,8 @@ import {
   where, 
   orderBy, 
   onSnapshot, 
-  deleteDoc, // Ajout pour la suppression
-  doc,       // Ajout pour cibler le document
+  deleteDoc, 
+  doc, 
   OperationType, 
   handleFirestoreError 
 } from '../firebase';
@@ -21,7 +21,8 @@ import {
   Plus, 
   Activity, 
   Share2,
-  Trash2 // Icône de suppression
+  Trash2,
+  ChevronRight // Ajout de l'icône pour le lien "Voir tout"
 } from 'lucide-react';
 import ShareWorkoutModal from './ShareWorkoutModal';
 import { format } from 'date-fns';
@@ -33,7 +34,7 @@ export default function Dashboard() {
   const [selectedWorkoutForShare, setSelectedWorkoutForShare] = useState<Workout | null>(null);
   const [stats, setStats] = useState({ totalWorkouts: 0, totalDuration: 0, thisMonth: 0 });
 
-  // --- LOGIQUE DE RÉCUPÉRATION DES SÉANCES ---
+  // --- RÉCUPÉRATION DES SÉANCES ET STATS ---
   useEffect(() => {
     if (!user) return;
     
@@ -49,9 +50,10 @@ export default function Dashboard() {
         ...doc.data() 
       } as Workout));
 
+      // On ne garde que les 5 plus récentes pour l'accueil
       setRecentWorkouts(workouts.slice(0, 5));
 
-      // Calcul des statistiques
+      // Calcul des stats sur la totalité des séances
       const totalDuration = workouts.reduce((acc, w) => acc + (w.duration || 0), 0);
       const now = new Date();
       const thisMonth = workouts.filter(w => {
@@ -66,18 +68,16 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, [user]);
 
-  // --- FONCTION DE SUPPRESSION ---
+  // --- SUPPRESSION D'UNE SÉANCE ---
   const handleDeleteWorkout = async (workoutId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Empêche de déclencher d'autres événements
+    e.stopPropagation();
     
-    if (!window.confirm("Es-tu sûr(e) de vouloir supprimer cette séance définitivement ?")) {
-      return;
-    }
+    if (!window.confirm("Supprimer cette séance définitivement ?")) return;
 
     try {
       await deleteDoc(doc(db, 'workouts', workoutId));
     } catch (error) {
-      console.error("Erreur lors de la suppression :", error);
+      console.error("Erreur suppression:", error);
       alert("Impossible de supprimer la séance.");
     }
   };
@@ -90,7 +90,7 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      {/* Header avec Bienvenue */}
+      {/* Header Bienvenue */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">
@@ -134,7 +134,17 @@ export default function Dashboard() {
 
       {/* Liste des Séances Récentes */}
       <section className="space-y-4">
-        <h3 className="text-xl font-bold px-1">Séances récentes</h3>
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-xl font-bold">Séances récentes</h3>
+          {/* LIEN VERS L'HISTORIQUE COMPLET */}
+          <button 
+            onClick={() => setCurrentPage('history')}
+            className="text-sm font-bold text-blue-600 flex items-center gap-1 hover:underline"
+          >
+            Voir tout <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
         <div className="space-y-3">
           {recentWorkouts.length === 0 ? (
             <div className={`p-10 rounded-3xl border border-dashed text-center ${theme === 'dark' ? 'border-zinc-800 text-zinc-600' : 'border-zinc-200 text-zinc-400'}`}>
@@ -166,8 +176,6 @@ export default function Dashboard() {
                   >
                     <Share2 className="w-5 h-5" />
                   </button>
-                  
-                  {/* BOUTON SUPPRIMER */}
                   <button 
                     onClick={(e) => handleDeleteWorkout(workout.id, e)} 
                     className={`p-2 rounded-xl transition-colors ${theme === 'dark' ? 'hover:bg-red-500/10 text-zinc-400 hover:text-red-500' : 'hover:bg-red-50 text-zinc-500 hover:text-red-600'}`}

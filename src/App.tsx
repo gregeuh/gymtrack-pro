@@ -14,7 +14,8 @@ import {
   Menu,
   X,
   Plus,
-  UserCircle 
+  UserCircle,
+  History // Ajout de l'icône Historique
 } from 'lucide-react';
 
 // Components
@@ -25,6 +26,7 @@ import ExerciseLibrary from './components/ExerciseLibrary';
 import CalendarView from './components/CalendarView';
 import StatsView from './components/StatsView';
 import ProfileView from './components/ProfileView';
+import HistoryView from './components/HistoryView'; // Import du nouveau composant
 
 // Context Definition
 interface AppContextType {
@@ -142,9 +144,11 @@ export default function App() {
 
   if (!user) return <Login />;
 
+  // --- MISE À JOUR : AJOUT DE L'HISTORIQUE ---
   const navItems = [
     { id: 'dashboard', label: 'Accueil', icon: LayoutDashboard },
     { id: 'tracker', label: 'Séance', icon: Dumbbell },
+    { id: 'history', label: 'Historique', icon: History }, // Nouvelle ligne
     { id: 'calendar', label: 'Calendrier', icon: CalendarIcon },
     { id: 'library', label: 'Exercices', icon: Library },
     { id: 'profile', label: 'Profil', icon: UserCircle },
@@ -155,6 +159,7 @@ export default function App() {
     switch (currentPage) {
       case 'dashboard': return <Dashboard />;
       case 'tracker': return <WorkoutTracker />;
+      case 'history': return <HistoryView />; // Nouvelle route
       case 'calendar': return <CalendarView />;
       case 'library': return <ExerciseLibrary />;
       case 'profile': return <ProfileView />;
@@ -165,7 +170,6 @@ export default function App() {
 
   return (
     <AppContext.Provider value={{ user, theme, toggleTheme, currentPage, setCurrentPage }}>
-      {/* FIX MOBILE : overflow-x-hidden sur le container principal */}
       <div className={`min-h-screen flex flex-col lg:flex-row overflow-x-hidden ${theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'}`}>
         
         {/* Mobile Sidebar Overlay */}
@@ -266,7 +270,6 @@ export default function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col min-w-0 min-h-screen">
-          {/* FIX MOBILE : p-3 au lieu de p-4 pour maximiser l'espace */}
           <div className="flex-1 p-3 md:p-8">
             <AnimatePresence mode="wait">
               <motion.div
