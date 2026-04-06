@@ -1,0 +1,23 @@
+{
+  "name": "GymTrack Pro",
+  "short_name": "GymTrack",
+  "description": "Suivez vos progrès, atteignez vos objectifs et transformez votre corps.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/gymtrack/192/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://picsum.photos/seed/gymtrack/512/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

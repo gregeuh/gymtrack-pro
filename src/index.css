@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body {
+    @apply min-h-screen w-full;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #root {
+    @apply min-h-screen w-full flex flex-col;
+  }
+}

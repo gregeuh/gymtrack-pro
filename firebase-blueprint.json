@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user-specific settings and profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "theme": { "type": "string", "enum": ["light", "dark"], "description": "User's preferred theme" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Exercise": {
+      "title": "Exercise",
+      "description": "Definition of a gym exercise or machine.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["Pectoraux", "Dos", "Jambes", "Épaules", "Bras", "Abdominaux", "Cardio"] },
+        "equipment": { "type": "string", "description": "Machine or equipment name" },
+        "isCustom": { "type": "boolean", "description": "True if added by the user" },
+        "createdBy": { "type": "string", "description": "UID of the user who created it, or 'system'" }
+      },
+      "required": ["name", "category"]
+    },
+    "Workout": {
+      "title": "Workout Session",
+      "description": "A single gym session containing multiple exercises.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "name": { "type": "string", "description": "Optional name for the session" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "exercises": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "exerciseId": { "type": "string" },
+              "exerciseName": { "type": "string" },
+              "sets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "reps": { "type": "number" },
+                    "weight": { "type": "number" },
+                    "isCompleted": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": ["userId", "date", "exercises"]
+    },
+    "PersonalRecord": {
+      "title": "Personal Record",
+      "description": "User's best performance for a specific exercise.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "exerciseId": { "type": "string" },
+        "exerciseName": { "type": "string" },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "exerciseId", "exerciseName", "value", "unit", "date"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/exercises/{exerciseId}": {
+      "schema": "Exercise",
+      "description": "Global and custom exercise library"
+    },
+    "/workouts/{workoutId}": {
+      "schema": "Workout",
+      "description": "User workout sessions"
+    },
+    "/personalRecords/{recordId}": {
+      "schema": "PersonalRecord",
+      "description": "User's personal records"
+    },
+    "/workoutTemplates/{templateId}": {
+      "schema": "WorkoutTemplate",
+      "description": "User's reusable workout templates"
+    }
+  }
+}
