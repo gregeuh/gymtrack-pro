@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Share2, Copy, Trophy, Clock, Zap, Dumbbell, Flame } from 'lucide-react';
+import { X, Share2, Copy, Trophy, Clock, Zap, Dumbbell, Flame, TrendingUp } from 'lucide-react'; // Ajout de TrendingUp ici
 import { Workout } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
