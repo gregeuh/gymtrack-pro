@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, OperationType, handleFirestoreError } from '../firebase';
 import { useApp } from '../App';
 import { Exercise } from '../types';
@@ -91,6 +91,20 @@ export default function ExerciseLibrary() {
 
   const categories = ['All', 'Pectoraux', 'Dos', 'Jambes', 'Épaules', 'Bras', 'Abdominaux', 'Cardio'];
 
+  // --- AJOUT DE LA LOGIQUE DE FILTRAGE (CORRECTION DU CRASH) ---
+  const filteredExercises = useMemo(() => {
+    return exercises.filter(ex => {
+      const matchesSearch = ex.name.toLowerCase().includes(search.toLowerCase());
+      const matchesCategory = filter === 'All' || ex.category === filter;
+      const matchesEquipment = equipmentFilter === 'All' || ex.equipment === equipmentFilter;
+      const matchesCreator = creatorFilter === 'All' || 
+        (creatorFilter === 'User' && ex.isCustom) || 
+        (creatorFilter === 'System' && !ex.isCustom);
+      
+      return matchesSearch && matchesCategory && matchesEquipment && matchesCreator;
+    });
+  }, [exercises, search, filter, equipmentFilter, creatorFilter]);
+
   const fetchExercises = async () => {
     try {
       const snapshot = await getDocs(collection(db, 'exercises'));
@@ -127,7 +141,8 @@ export default function ExerciseLibrary() {
       handleFirestoreError(error, OperationType.CREATE, 'exercises');
     }
   };
-const handleGenerateMachines = async () => {
+
+  const handleGenerateMachines = async () => {
     if (!gymName) {
         setError("Veuillez entrer le nom d'une salle.");
         return;
@@ -136,7 +151,6 @@ const handleGenerateMachines = async () => {
     setError(null);
 
     try {
-        // On appelle la fonction sécurisée sur Vercel au lieu de mettre la clé ici
         const response = await fetch('/api/generate-machines', {
             method: 'POST',
             body: JSON.stringify({ gymName })
@@ -152,7 +166,7 @@ const handleGenerateMachines = async () => {
     } finally {
         setIsGenerating(false);
     }
-};
+  };
 
   const handleImportSelected = async () => {
     if (!user || selectedToImport.length === 0) return;
@@ -213,16 +227,13 @@ const handleGenerateMachines = async () => {
   };
 
   const handleGenerateAIImage = async (exercise: Exercise) => {
-    // Désactivé pour éviter la facturation directe sur Google Cloud
-    setError("La génération d'images par IA est temporairement désactivée pour économiser vos crédits. Utilisation de l'image par défaut.");
-    
+    setError("La génération d'images par IA est temporairement désactivée. Utilisation de l'image par défaut.");
     const fallbackUrl = `https://loremflickr.com/400/300/gym,workout,${encodeURIComponent(exercise.name)}`;
-    
     await updateDoc(doc(db, 'exercises', exercise.id), {
         imageUrl: fallbackUrl
     });
     fetchExercises();
-};
+  };
 
   const equipments = ['All', ...Array.from(new Set(exercises.map(ex => ex.equipment).filter(Boolean))) as string[]];
   const creators = ['All', 'User', 'System'];
@@ -351,16 +362,13 @@ const handleGenerateMachines = async () => {
                 </div>
                 
                 <div className="flex gap-2">
-                  {(ex.createdBy === user?.uid || user?.email === 'gregory.troplent25@gmail.com') && (
-                    <button 
-                      onClick={() => handleGenerateAIImage(ex)}
-                      disabled={isGeneratingImage === ex.id}
-                      className={`p-2 rounded-xl transition-all active:scale-90 flex items-center gap-2 ${isGeneratingImage === ex.id ? 'bg-blue-500 text-white' : 'bg-blue-600/10 hover:bg-blue-600/20 text-blue-600'}`}
-                      title="Générer une image par IA"
-                    >
-                      {isGeneratingImage === ex.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => handleGenerateAIImage(ex)}
+                    className={`p-2 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 transition-all active:scale-90 flex items-center gap-2`}
+                    title="Générer une image par IA"
+                  >
+                    <Zap className="w-4 h-4" />
+                  </button>
                   {ex.isCustom && (
                     <button 
                       onClick={() => handleDeleteExercise(ex)}
@@ -473,7 +481,7 @@ const handleGenerateMachines = async () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Machine / Équipement (Optionnel)</label>
+                  <label className="text-sm font-bold text-zinc-500 uppercase tracking-wider">Machine / Équipement</label>
                   <input 
                     type="text" 
                     value={newExercise.equipment}
@@ -484,33 +492,30 @@ const handleGenerateMachines = async () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-500 uppercase tracking-wider">URL de l'image (Optionnel)</label>
-                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-50 border-zinc-200'}`}>
-                    <Link className="w-5 h-5 text-zinc-500" />
-                    <input 
-                      type="url" 
-                      value={newExercise.imageUrl}
-                      onChange={(e) => setNewExercise({...newExercise, imageUrl: e.target.value})}
-                      placeholder="ex: https://images.com/photo.jpg"
-                      className="flex-1 bg-transparent border-none focus:ring-0 text-sm"
-                    />
-                  </div>
+                  <label className="text-sm font-bold text-zinc-500 uppercase tracking-wider">URL de l'image</label>
+                  <input 
+                    type="url" 
+                    value={newExercise.imageUrl}
+                    onChange={(e) => setNewExercise({...newExercise, imageUrl: e.target.value})}
+                    placeholder="ex: https://images.com/photo.jpg"
+                    className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-50 border-zinc-200'}`}
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-500 uppercase tracking-wider">URL de la vidéo (YouTube/Vimeo)</label>
+                  <label className="text-sm font-bold text-zinc-500 uppercase tracking-wider">URL de la vidéo</label>
                   <input 
                     type="url" 
                     value={newExercise.videoUrl}
                     onChange={(e) => setNewExercise({...newExercise, videoUrl: e.target.value})}
-                    placeholder="ex: https://youtube.com/watch?v=..."
+                    placeholder="ex: https://youtube.com/..."
                     className={`w-full px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-50 border-zinc-200'}`}
                   />
                 </div>
 
                 <button 
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-600/20 active:scale-95 mt-4"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg active:scale-95 mt-4"
                 >
                   Ajouter à la bibliothèque
                 </button>
@@ -540,7 +545,7 @@ const handleGenerateMachines = async () => {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-2xl font-bold">Importer d'une salle</h3>
-                  <p className="text-sm text-zinc-500">Entrez le nom d'une salle pour générer sa liste de machines.</p>
+                  <p className="text-sm text-zinc-500">Générez la liste des machines via IA.</p>
                 </div>
                 <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-zinc-800 rounded-xl">
                   <X className="w-6 h-6" />
@@ -552,7 +557,7 @@ const handleGenerateMachines = async () => {
                   type="text" 
                   value={gymName}
                   onChange={(e) => setGymName(e.target.value)}
-                  placeholder="ex: Basic-Fit, Fitness Park..."
+                  placeholder="ex: Fitness Park"
                   className={`flex-1 px-4 py-3 rounded-xl border ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-50 border-zinc-200'}`}
                 />
                 <button 
@@ -565,86 +570,49 @@ const handleGenerateMachines = async () => {
                 </button>
               </div>
 
-              {error && (
-                <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-medium">
-                  {error}
-                </div>
-              )}
-
               <div className="flex-1 overflow-y-auto space-y-2 mb-6">
                 {suggestedExercises.map((ex, i) => (
                   <button
                     key={i}
-                    onClick={() => {
-                      if (selectedToImport.includes(i)) {
-                        setSelectedToImport(selectedToImport.filter(idx => idx !== i));
-                      } else {
-                        setSelectedToImport([...selectedToImport, i]);
-                      }
-                    }}
-                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all text-left border ${selectedToImport.includes(i) ? 'border-blue-500 bg-blue-500/5' : theme === 'dark' ? 'border-zinc-800 hover:bg-zinc-800' : 'border-zinc-100 hover:bg-zinc-50'}`}
+                    onClick={() => selectedToImport.includes(i) ? setSelectedToImport(selectedToImport.filter(idx => idx !== i)) : setSelectedToImport([...selectedToImport, i])}
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${selectedToImport.includes(i) ? 'border-blue-500 bg-blue-500/5' : theme === 'dark' ? 'border-zinc-800 hover:bg-zinc-800' : 'border-zinc-100 hover:bg-zinc-50'}`}
                   >
                     <div>
                       <p className="font-bold">{ex.name}</p>
-                      <p className="text-xs text-zinc-500">{ex.category} • {ex.equipment || 'Poids libre'}</p>
+                      <p className="text-xs text-zinc-500">{ex.category} • {ex.equipment}</p>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${selectedToImport.includes(i) ? 'bg-blue-500 border-blue-500 text-white' : 'border-zinc-700'}`}>
+                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${selectedToImport.includes(i) ? 'bg-blue-500 border-blue-500 text-white' : 'border-zinc-700'}`}>
                       {selectedToImport.includes(i) && <Check className="w-4 h-4" />}
                     </div>
                   </button>
                 ))}
-                {!isGenerating && suggestedExercises.length === 0 && (
-                  <div className="text-center py-12 text-zinc-500">
-                    <Download className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                    <p>Entrez un nom de salle pour commencer.</p>
-                  </div>
-                )}
               </div>
 
               {suggestedExercises.length > 0 && (
                 <button 
                   onClick={handleImportSelected}
                   disabled={isGenerating || selectedToImport.length === 0}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg active:scale-95"
                 >
-                  {isGenerating ? 'Importation...' : `Importer ${selectedToImport.length} exercices`}
+                  Importer {selectedToImport.length} exercices
                 </button>
               )}
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
       {/* Video Modal */}
       <AnimatePresence>
         {showVideoModal && (
           <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowVideoModal(null)}
-              className="absolute inset-0 bg-black/90 backdrop-blur-md"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-4xl aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl"
-            >
-              <button 
-                onClick={() => setShowVideoModal(null)}
-                className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/80 rounded-full text-white transition-all"
-              >
-                <X className="w-6 h-6" />
-              </button>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowVideoModal(null)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-4xl aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl">
+              <button onClick={() => setShowVideoModal(null)} className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/80 rounded-full text-white"><X className="w-6 h-6" /></button>
               <iframe 
-                src={showVideoModal.includes('youtube.com') || showVideoModal.includes('youtu.be') 
-                  ? `https://www.youtube.com/embed/${showVideoModal.split('v=')[1] || showVideoModal.split('/').pop()}`
-                  : showVideoModal
-                }
+                src={showVideoModal.includes('youtube.com') || showVideoModal.includes('youtu.be') ? `https://www.youtube.com/embed/${showVideoModal.split('v=')[1] || showVideoModal.split('/').pop()}` : showVideoModal}
                 className="w-full h-full border-none"
                 allowFullScreen
-                referrerPolicy="no-referrer"
               />
             </motion.div>
           </div>
@@ -655,39 +623,14 @@ const handleGenerateMachines = async () => {
       <AnimatePresence>
         {exerciseToDelete && (
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setExerciseToDelete(null)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className={`relative w-full max-w-md rounded-3xl border shadow-2xl p-8 text-center ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'}`}
-            >
-              <div className="inline-flex p-4 bg-red-500/10 rounded-2xl mb-6">
-                <Trash2 className="w-10 h-10 text-red-500" />
-              </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setExerciseToDelete(null)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className={`relative w-full max-w-md rounded-3xl border shadow-2xl p-8 text-center ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'}`}>
+              <div className="inline-flex p-4 bg-red-500/10 rounded-2xl mb-6"><Trash2 className="w-10 h-10 text-red-500" /></div>
               <h3 className="text-2xl font-bold mb-2">Supprimer l'exercice ?</h3>
-              <p className="text-zinc-500 mb-8">
-                Êtes-vous sûr de vouloir supprimer <span className="font-bold text-zinc-900 dark:text-white">"{exerciseToDelete.name}"</span> ? Cette action est irréversible.
-              </p>
+              <p className="text-zinc-500 mb-8">"{exerciseToDelete.name}" sera définitivement supprimé.</p>
               <div className="flex gap-3">
-                <button 
-                  onClick={() => setExerciseToDelete(null)}
-                  className={`flex-1 py-4 rounded-2xl font-bold transition-all ${theme === 'dark' ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-900'}`}
-                >
-                  Annuler
-                </button>
-                <button 
-                  onClick={handleConfirmDelete}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-red-600/20 active:scale-95"
-                >
-                  Supprimer
-                </button>
+                <button onClick={() => setExerciseToDelete(null)} className={`flex-1 py-4 rounded-2xl font-bold ${theme === 'dark' ? 'bg-zinc-800 text-white' : 'bg-zinc-100'}`}>Annuler</button>
+                <button onClick={handleConfirmDelete} className="flex-1 bg-red-600 text-white font-bold py-4 rounded-2xl shadow-lg active:scale-95">Supprimer</button>
               </div>
             </motion.div>
           </div>
@@ -696,4 +639,3 @@ const handleGenerateMachines = async () => {
     </div>
   );
 }
-
