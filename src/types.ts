@@ -21,11 +21,11 @@ export interface Exercise {
 export interface WorkoutSet {
   reps?: number;
   weight?: number;
-  duration?: number; // in minutes
-  distance?: number; // in km
-  speed?: number; // in km/h or level
-  resistance?: number; // resistance level
-  cadence?: number; // RPM or steps/min
+  duration?: number;
+  distance?: number;
+  speed?: number;
+  resistance?: number;
+  cadence?: number;
   isCompleted: boolean;
 }
 
@@ -38,9 +38,10 @@ export interface WorkoutExercise {
 export interface Workout {
   id: string;
   userId: string;
-  date: any; // Firestore Timestamp
+  date: any;
   name?: string;
   duration?: number;
+  intensity?: number; // Ajouté
   exercises: WorkoutExercise[];
 }
 
@@ -49,9 +50,9 @@ export interface PersonalRecord {
   userId: string;
   exerciseId: string;
   exerciseName: string;
-  value: number; // weight in kg or duration in min
-  unit: string; // 'kg', 'min', 'km', etc.
-  date: any; // Firestore Timestamp
+  value: number;
+  unit: string;
+  date: any;
 }
 
 export interface WorkoutTemplate {
@@ -61,15 +62,7 @@ export interface WorkoutTemplate {
   exercises: {
     exerciseId: string;
     exerciseName: string;
-    sets: {
-      reps?: number;
-      weight?: number;
-      duration?: number;
-      distance?: number;
-      speed?: number;
-      resistance?: number;
-      cadence?: number;
-    }[];
+    sets: Partial<WorkoutSet>[];
   }[];
   createdAt: any;
 }

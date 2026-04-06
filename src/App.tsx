@@ -15,7 +15,7 @@ import {
   X,
   Plus,
   UserCircle,
-  History // Ajout de l'icône Historique
+  History // AJOUTÉ
 } from 'lucide-react';
 
 // Components
@@ -26,7 +26,7 @@ import ExerciseLibrary from './components/ExerciseLibrary';
 import CalendarView from './components/CalendarView';
 import StatsView from './components/StatsView';
 import ProfileView from './components/ProfileView';
-import HistoryView from './components/HistoryView'; // Import du nouveau composant
+import HistoryView from './components/HistoryView'; // AJOUTÉ
 
 // Context Definition
 interface AppContextType {
@@ -54,7 +54,7 @@ export default function App() {
   const [isMenuVisible, setIsMenuVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  // Gestion du scroll pour cacher/afficher le menu mobile
+  // Gestion du scroll pour cacher/afficher le menu mobile (VOTRE LOGIQUE COMPLÈTE)
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -144,11 +144,10 @@ export default function App() {
 
   if (!user) return <Login />;
 
-  // --- MISE À JOUR : AJOUT DE L'HISTORIQUE ---
   const navItems = [
     { id: 'dashboard', label: 'Accueil', icon: LayoutDashboard },
     { id: 'tracker', label: 'Séance', icon: Dumbbell },
-    { id: 'history', label: 'Historique', icon: History }, // Nouvelle ligne
+    { id: 'history', label: 'Historique', icon: History }, // AJOUTÉ
     { id: 'calendar', label: 'Calendrier', icon: CalendarIcon },
     { id: 'library', label: 'Exercices', icon: Library },
     { id: 'profile', label: 'Profil', icon: UserCircle },
@@ -159,7 +158,7 @@ export default function App() {
     switch (currentPage) {
       case 'dashboard': return <Dashboard />;
       case 'tracker': return <WorkoutTracker />;
-      case 'history': return <HistoryView />; // Nouvelle route
+      case 'history': return <HistoryView />; // AJOUTÉ
       case 'calendar': return <CalendarView />;
       case 'library': return <ExerciseLibrary />;
       case 'profile': return <ProfileView />;
@@ -170,6 +169,7 @@ export default function App() {
 
   return (
     <AppContext.Provider value={{ user, theme, toggleTheme, currentPage, setCurrentPage }}>
+      {/* Container principal avec fix mobile */}
       <div className={`min-h-screen flex flex-col lg:flex-row overflow-x-hidden ${theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'}`}>
         
         {/* Mobile Sidebar Overlay */}
@@ -185,7 +185,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Sidebar */}
+        {/* Sidebar Desktop/Mobile */}
         <aside className={`
           fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-0
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -244,7 +244,7 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Mobile Header */}
+        {/* Mobile Header Sticky */}
         <header className={`lg:hidden flex items-center justify-between px-4 pb-4 pt-[calc(16px+env(safe-area-inset-top))] sticky top-0 z-30 backdrop-blur-md ${theme === 'dark' ? 'bg-zinc-950/80 border-b border-zinc-800' : 'bg-zinc-50/80 border-b border-zinc-200'}`}>
           <div className="flex items-center gap-3">
             <button 
