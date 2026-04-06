@@ -229,14 +229,12 @@ export default function WorkoutTracker() {
           </button>
           <h2 className="text-xl md:text-2xl font-bold tracking-tight">Nouvelle séance</h2>
         </div>
-        <div className="flex items-center gap-2">
-          {/* LE BLOC DURÉE A ÉTÉ SUPPRIMÉ ICI */}
-
-          <button onClick={saveWorkout} disabled={isSaving || selectedExercises.length === 0} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2.5 px-5 rounded-2xl transition-all shadow-lg active:scale-95 text-sm">
-            <Save className="w-4 h-4" />
-            <span>Enregistrer</span>
-          </button>
-        </div>
+        
+        {/* EN-TÊTE ÉPURÉ : LE BLOC DURÉE ET SON WRAPPER ONT ÉTÉ SUPPRIMÉS */}
+        <button onClick={saveWorkout} disabled={isSaving || selectedExercises.length === 0} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2.5 px-5 rounded-2xl transition-all shadow-lg active:scale-95 text-sm">
+          <Save className="w-4 h-4" />
+          <span>Enregistrer</span>
+        </button>
       </header>
 
       <div className="space-y-6">
