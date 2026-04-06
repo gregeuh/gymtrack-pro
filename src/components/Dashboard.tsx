@@ -11,9 +11,7 @@ import {
   Plus,
   Activity,
   Share2,
-  Heart,
-  CheckCircle2,
-  RefreshCw
+  Heart
 } from 'lucide-react';
 import ShareWorkoutModal from './ShareWorkoutModal';
 import { format } from 'date-fns';
@@ -23,29 +21,6 @@ export default function Dashboard() {
   const { user, theme, setCurrentPage } = useApp();
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
   const [selectedWorkoutForShare, setSelectedWorkoutForShare] = useState<Workout | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSync, setLastSync] = useState<string | null>(localStorage.getItem('lastHealthSync'));
-  
-  const handleHealthSync = () => {
-    setIsSyncing(true);
-    // Simulate sync with Health app
-    setTimeout(() => {
-      const now = new Date().toISOString();
-      setLastSync(now);
-      localStorage.setItem('lastHealthSync', now);
-      setIsSyncing(false);
-      
-      // If supported, use Web Share API to "send" data
-      if (navigator.share && recentWorkouts.length > 0) {
-        const lastWorkout = recentWorkouts[0];
-        navigator.share({
-          title: 'Séance de sport - ' + lastWorkout.name,
-          text: `J'ai terminé une séance de ${lastWorkout.duration} minutes !`,
-          url: window.location.href
-        }).catch(() => {});
-      }
-    }, 2000);
-  };
 
   const [stats, setStats] = useState({
     totalWorkouts: 0,
@@ -93,6 +68,7 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
+      {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Bonjour, {user?.displayName?.split(' ')[0]} 👋</h2>
@@ -106,44 +82,6 @@ export default function Dashboard() {
           Nouvelle séance
         </button>
       </header>
-
-      {/* Health Sync Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`p-6 rounded-3xl border flex flex-col md:flex-row items-center justify-between gap-6 ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'}`}
-      >
-        <div className="flex items-center gap-4">
-          <div className={`p-4 rounded-2xl bg-red-500/10`}>
-            <Heart className="w-8 h-8 text-red-500" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold">Synchronisation Santé</h3>
-            <p className={`text-sm ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}`}>
-              {lastSync 
-                ? `Dernière synchro : ${format(new Date(lastSync), 'd MMMM à HH:mm', { locale: fr })}`
-                : "Connectez vos données à Apple Health / Google Fit"
-              }
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={handleHealthSync}
-          disabled={isSyncing}
-          className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold transition-all ${
-            isSyncing 
-              ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' 
-              : 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 active:scale-95'
-          }`}
-        >
-          {isSyncing ? (
-            <RefreshCw className="w-5 h-5 animate-spin" />
-          ) : (
-            <CheckCircle2 className="w-5 h-5" />
-          )}
-          {isSyncing ? 'Synchronisation...' : 'Synchroniser maintenant'}
-        </button>
-      </motion.div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -190,12 +128,12 @@ export default function Dashboard() {
                 transition={{ delay: i * 0.1 }}
                 className={`p-5 rounded-3xl border flex items-center justify-between group cursor-pointer transition-all ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-200 hover:border-zinc-300'}`}
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="flex items-center gap-4 flex-1">
                     <div className={`p-3 rounded-2xl ${theme === 'dark' ? 'bg-zinc-800' : 'bg-zinc-100'}`}>
                       <TrendingUp className="w-6 h-6 text-blue-500" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-bold">{workout.name || 'Séance de sport'}</h4>
                       <div className="flex items-center gap-2 mt-1">
                         <p className={`text-sm ${theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}`}>
@@ -219,7 +157,7 @@ export default function Dashboard() {
                     <Share2 className="w-5 h-5" />
                   </button>
                 </div>
-                <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-blue-500 transition-colors" />
+                <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-blue-500 transition-colors ml-4" />
               </motion.div>
             ))
           ) : (
