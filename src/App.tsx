@@ -13,7 +13,8 @@ import {
   Moon,
   Menu,
   X,
-  Plus
+  Plus,
+  UserCircle // Importation de l'icône Profil
 } from 'lucide-react';
 
 // Components
@@ -23,6 +24,7 @@ import WorkoutTracker from './components/WorkoutTracker';
 import ExerciseLibrary from './components/ExerciseLibrary';
 import CalendarView from './components/CalendarView';
 import StatsView from './components/StatsView';
+import ProfileView from './components/ProfileView'; // Importation du nouveau composant
 
 // Context
 interface AppContextType {
@@ -115,7 +117,7 @@ export default function App() {
     }
   };
 
-  // Écran de chargement initial (le petit haltère qui tourne)
+  // Écran de chargement initial
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-zinc-950' : 'bg-zinc-50'}`}>
@@ -129,16 +131,18 @@ export default function App() {
     );
   }
 
-  // Si aucun utilisateur n'est connecté, on affiche ton nouveau Login.tsx (Email)
+  // Si aucun utilisateur n'est connecté
   if (!user) {
     return <Login />;
   }
 
+  // --- MISE À JOUR : AJOUT DE L'ONGLET PROFIL ---
   const navItems = [
     { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
     { id: 'tracker', label: 'Nouvelle séance', icon: Dumbbell },
     { id: 'calendar', label: 'Calendrier', icon: CalendarIcon },
     { id: 'library', label: 'Exercices', icon: Library },
+    { id: 'profile', label: 'Profil', icon: UserCircle }, // Nouvel onglet
     { id: 'stats', label: 'Statistiques', icon: BarChart3 },
   ];
 
@@ -148,6 +152,7 @@ export default function App() {
       case 'tracker': return <WorkoutTracker />;
       case 'calendar': return <CalendarView />;
       case 'library': return <ExerciseLibrary />;
+      case 'profile': return <ProfileView />; // Nouvelle route
       case 'stats': return <StatsView />;
       default: return <Dashboard />;
     }
@@ -155,7 +160,8 @@ export default function App() {
 
   return (
     <AppContext.Provider value={{ user, theme, toggleTheme, currentPage, setCurrentPage }}>
-      <div className={`min-h-screen flex flex-col lg:flex-row ${theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'}`}>
+      {/* --- FIX MOBILE : overflow-x-hidden pour éviter que ça déborde --- */}
+      <div className={`min-h-screen flex flex-col lg:flex-row overflow-x-hidden ${theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'}`}>
         
         {/* Mobile Sidebar Overlay */}
         <AnimatePresence>
@@ -257,7 +263,8 @@ export default function App() {
 
         {/* Main Content */}
         <main className="flex-1 flex flex-col min-w-0 min-h-screen">
-          <div className="flex-1 p-4 md:p-8">
+          {/* --- FIX MOBILE : p-3 au lieu de p-4 pour gagner de la place --- */}
+          <div className="flex-1 p-3 md:p-8">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentPage}
@@ -297,7 +304,7 @@ export default function App() {
               animate={{ y: 0 }}
               exit={{ y: 100 }}
               className={`
-                lg:hidden fixed bottom-6 left-6 right-6 z-40 px-2 py-2 border rounded-3xl backdrop-blur-xl shadow-2xl
+                lg:hidden fixed bottom-6 left-4 right-4 z-40 px-2 py-2 border rounded-3xl backdrop-blur-xl shadow-2xl
                 ${theme === 'dark' ? 'bg-zinc-900/90 border-zinc-800 shadow-black/50' : 'bg-white/90 border-zinc-200 shadow-zinc-200/50'}
               `}
             >

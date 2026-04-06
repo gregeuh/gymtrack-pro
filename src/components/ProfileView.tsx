@@ -12,11 +12,12 @@ export default function ProfileView() {
   const handleUpdateProfile = async () => {
     if (!user) return;
     try {
+      // Met à jour le nom dans la collection 'users' de Firestore
       await setDoc(doc(db, 'users', user.uid), { displayName: name }, { merge: true });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
-      console.error(e);
+      console.error("Erreur mise à jour profil:", e);
     }
   };
 
