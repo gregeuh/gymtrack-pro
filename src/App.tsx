@@ -1,6 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-// On ne garde que db et les fonctions Firestore, on retire "auth"
-import { db, doc, getDoc, setDoc, OperationType, handleFirestoreError } from './firebase';
+import { auth, onAuthStateChanged, db, doc, getDoc, setDoc, OperationType, handleFirestoreError } from './firebase';
 import { UserProfile } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -9,6 +8,7 @@ import {
   Calendar as CalendarIcon, 
   Library, 
   BarChart3, 
+  LogOut, 
   Sun, 
   Moon,
   Menu,
@@ -16,23 +16,13 @@ import {
   Plus
 } from 'lucide-react';
 
-// Import des pages (On retire l'import de Login)
+// Components
+import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import WorkoutTracker from './components/WorkoutTracker';
 import ExerciseLibrary from './components/ExerciseLibrary';
 import CalendarView from './components/CalendarView';
 import StatsView from './components/StatsView';
-
-// --- CONFIGURATION UTILISATEUR INVITÉ ---
-// Cet utilisateur sera utilisé par défaut pour enregistrer tes données
-const GUEST_USER: UserProfile = {
-  uid: 'guest-user-pro', 
-  email: 'invite@gymtrack.com',
-  displayName: 'Utilisateur Invité',
-  photoURL: '',
-  theme: 'dark',
-  createdAt: new Date()
-};
 
 // Context
 interface AppContextType {
@@ -52,16 +42,15 @@ export const useApp = () => {
 };
 
 export default function App() {
-  // On initialise l'état directement avec l'invité au lieu de null
-  const [user, setUser] = useState<UserProfile | null>(GUEST_USER);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  // Gestion du défilement pour le menu mobile
+  // Gestion du scroll pour cacher/afficher le menu mobile
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -77,27 +66,41 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // Initialisation de la session invitée dans Firestore
+  // --- LOGIQUE D'AUTHENTIFICATION RÉELLE ---
   useEffect(() => {
-    const initGuestSession = async () => {
-      try {
-        const userDoc = await getDoc(doc(db, 'users', GUEST_USER.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data() as UserProfile;
-          setUser(userData);
-          if (userData.theme) setTheme(userData.theme);
-        } else {
-          // Si c'est la première fois, on crée le profil "guest" dans ta base
-          await setDoc(doc(db, 'users', GUEST_USER.uid), GUEST_USER);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const userRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userRef);
+          
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as UserProfile;
+            setUser(userData);
+            if (userData.theme) setTheme(userData.theme);
+          } else {
+            // Création du profil si c'est un nouvel utilisateur (via email)
+            const newUser: UserProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Utilisateur',
+              photoURL: firebaseUser.photoURL || '',
+              theme: 'dark',
+              createdAt: new Date()
+            };
+            await setDoc(userRef, newUser);
+            setUser(newUser);
+          }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
         }
-      } catch (error) {
-        console.warn("Firestore access info:", "La base est accessible en mode ouvert.");
-      } finally {
-        setLoading(false);
+      } else {
+        setUser(null);
       }
-    };
+      setLoading(false);
+    });
 
-    initGuestSession();
+    return () => unsubscribe();
   }, []);
 
   const toggleTheme = async () => {
@@ -106,13 +109,13 @@ export default function App() {
     if (user) {
       try {
         await setDoc(doc(db, 'users', user.uid), { theme: newTheme }, { merge: true });
-      } catch (e) {
-        console.log("Thème sauvegardé localement uniquement");
+      } catch (error) {
+        console.log("Préférence de thème non sauvegardée en base");
       }
     }
   };
 
-  // Écran de chargement
+  // Écran de chargement initial (le petit haltère qui tourne)
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-zinc-950' : 'bg-zinc-50'}`}>
@@ -124,6 +127,11 @@ export default function App() {
         </motion.div>
       </div>
     );
+  }
+
+  // Si aucun utilisateur n'est connecté, on affiche ton nouveau Login.tsx (Email)
+  if (!user) {
+    return <Login />;
   }
 
   const navItems = [
@@ -162,7 +170,7 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Sidebar */}
+        {/* Sidebar (Desktop & Mobile Drawer) */}
         <aside className={`
           fixed inset-y-0 left-0 z-50 w-72 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-0
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -210,7 +218,13 @@ export default function App() {
                 {theme === 'dark' ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-blue-500" />}
                 <span className="font-medium">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
               </button>
-              {/* Note: Bouton déconnexion supprimé car inutile en mode invité */}
+              <button
+                onClick={() => auth.signOut()}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 transition-all ${theme === 'dark' ? 'hover:bg-zinc-800' : 'hover:bg-zinc-100'}`}
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Déconnexion</span>
+              </button>
             </div>
           </div>
         </aside>
