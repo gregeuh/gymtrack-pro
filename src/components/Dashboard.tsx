@@ -72,7 +72,7 @@ export default function Dashboard() {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Bonjour, {user?.displayName?.split(' ')[0]} 👋</h2>
-          <p className={theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}>Prêt pour votre séance d'aujourd'hui ?</p>
+          <p className={theme === 'dark' ? 'text-zinc-400' : 'text-zinc-500'}>Prêt(e) pour votre séance d'aujourd'hui ?</p>
         </div>
         <button 
           onClick={() => setCurrentPage('tracker')}
